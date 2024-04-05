@@ -1,0 +1,21 @@
+# python generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# rye
+target
+.venv
+.env
+/x
+site
+__pycache__
+.idea
+token.txt
+dist
+
+# project files
+*.json
