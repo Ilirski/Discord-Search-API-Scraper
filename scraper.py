@@ -41,19 +41,20 @@ class DiscordSearcher:
             for message in messages["messages"]:
                 f.write(json.dumps(message) + "\n")
 
-    def convert_to_discord_timestamp(self, date: datetime.datetime) -> int:
+    def convert_to_discord_snowflake(self, date: datetime.datetime) -> str:
         """Convert a datetime object to a Discord timestamp."""
         DISCORD_EPOCH = 1420070400000
 
         timestamp_ms = int(date.timestamp() * 1000)
-        return (timestamp_ms - DISCORD_EPOCH) << 22
+        timestamp_ms = (timestamp_ms - DISCORD_EPOCH) << 22
+        return str(timestamp_ms)
 
     def form_search_query(
         self,
         guild_id: str,
         content: str | None = None,
         channel_id: str | None = None,
-        after: datetime.datetime | None = None,
+        after: int | datetime.datetime | None = None,
     ) -> None:
         """Form a search query for Discord's Search API."""
         if not guild_id:
@@ -71,8 +72,10 @@ class DiscordSearcher:
             ["include_nsfw=true", "sort_by=timestamp", "sort_order=asc"]
         )
 
-        if after is not None:
-            query_params.append(f"min_id={self.convert_to_discord_timestamp(after)}")
+        if isinstance(after, datetime.datetime):
+            query_params.append(f"min_id={self.convert_to_discord_snowflake(after)}")
+        elif isinstance(after, int):
+            query_params.append(f"min_id={after}")
 
         search_query = base_url + "&".join(query_params)
         self.query = search_query
@@ -117,16 +120,36 @@ class DiscordSearcher:
         self.query = "https://discord.com/api/v9/guilds/791280644939841536/messages/search?content=shadow%20raid&include_nsfw=true&sort_by=timestamp&sort_order=asc"
         self.append_message(self.search(self.query))
 
-    def _update_query_params(self, last_message_id: str) -> None:
+    def _update_query_params(self, last_message_timestamp: str) -> None:
         """Update the query parameters with the last message ID."""
         if self.query is None:
             raise ValueError("No query set")
 
         if "min_id" in self.query:
             min_id = self.query[self.query.index("min_id=") + len("min_id=") :]
-            self.query = self.query.replace(min_id, last_message_id)
+            self.query = self.query.replace(min_id, last_message_timestamp)
         else:
-            self.query = f"{self.query}&min_id={last_message_id}"
+            self.query = f"{self.query}&min_id={last_message_timestamp}"
+
+        print(self.query)
+
+    def test_offset_limit(self) -> None:
+        """Test the offset limit of the Discord API."""
+        self.query = "https://discord.com/api/v9/guilds/558322816416743459/messages/search?content=BaelzNeuronActivation&include_nsfw=true&sort_by=timestamp&sort_order=asc"
+        result = self.search(f"{self.query}&offset=5000")
+        pprint(result)
+        last_message_id = result["messages"][-1][0]["id"]
+        # last_message_timestamp: datetime.datetime = datetime.datetime.strptime(
+        #     result["messages"][-1][0]["timestamp"][:10], "%Y-%m-%d"
+        # )
+        print(last_message_id)
+        # self._update_query_params(
+        #     self.convert_to_discord_snowflake(last_message_timestamp)
+        # )
+        self._update_query_params(last_message_id)
+        request_count = 1
+        result = self.search(f"{self.query}&offset={(request_count - 1) * 25}")
+        pprint(result)
 
     def retrieve_query_results(self) -> None:
         """Get all results from the search query."""
@@ -152,9 +175,9 @@ class DiscordSearcher:
                     break
 
                 if request_count >= self.DISCORD_API_OFFSET_LIMIT:
-                    last_message_id = result["messages"][-1]["id"]
-                    self._update_query_params(last_message_id)
-                    request_count = 1
+                    last_message_snowflake: str = result["messages"][-1][0]["id"]
+                    self._update_query_params(last_message_snowflake)
+                    request_count = 0
 
                 request_count += 1
                 total_request_count += 1
@@ -171,12 +194,12 @@ class DiscordSearcher:
 if __name__ == "__main__":
     token = os.getenv("DISCORD_TOKEN")
     searcher = DiscordSearcher(token)
-    # searcher.form_search_query("791280644939841536", "shadow raid")
-    searcher.set_file("TowaShrug.json")
-    searcher.form_search_query(
-        "558322816416743459", "TowaShrug", after=datetime.datetime(2022, 6, 1)
-    )
+    searcher.test_offset_limit()
+    # searcher.set_file("TowaShrug.json")
+    # searcher.form_search_query(
+    #     "558322816416743459", "TowaShrug", after=datetime.datetime(2022, 6, 1)
+    # )
     # pprint(searcher.search(searcher.query))
     # searcher.set_file("raid_shadow.json")
     # searcher.test_search()
-    searcher.retrieve_query_results()
+    # searcher.retrieve_query_results()
