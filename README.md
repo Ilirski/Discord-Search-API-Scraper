@@ -1,3 +1,3 @@
 # discord-search-api-scraper
 
-Describe your project here.
+- This repo uses the rye python package manager.

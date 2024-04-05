@@ -8,6 +8,8 @@ import os
 import urllib.parse
 from pprint import pprint
 
+# TODO: Add folder to save files to
+
 
 class DiscordSearcher:
     """

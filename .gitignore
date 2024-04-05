@@ -19,3 +19,4 @@ dist
 
 # project files
 *.json
+*.csv
