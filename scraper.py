@@ -25,7 +25,7 @@ class DiscordSearcher:
         self.query = None
         self.error_count = 0
         self.MAX_ERROR = 5
-        self.DISCORD_API_OFFSET_LIMIT = 401
+        self.DISCORD_API_OFFSET_LIMIT = 400
         logging.basicConfig(
             level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
         )
