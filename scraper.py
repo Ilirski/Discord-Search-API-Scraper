@@ -9,6 +9,7 @@ import urllib.parse
 from pprint import pprint
 
 # TODO: Add folder to save files to
+# TODO: When searching from the middle, script does not know when to complete.
 
 
 class DiscordSearcher:
@@ -24,7 +25,7 @@ class DiscordSearcher:
         self.query = None
         self.error_count = 0
         self.MAX_ERROR = 5
-        self.DISCORD_API_OFFSET_LIMIT = 201
+        self.DISCORD_API_OFFSET_LIMIT = 401
         logging.basicConfig(
             level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
         )
@@ -55,6 +56,7 @@ class DiscordSearcher:
         content: str | None = None,
         channel_id: str | None = None,
         after: int | datetime.datetime | None = None,
+        before: int | datetime.datetime | None = None,
     ) -> None:
         """Form a search query for Discord's Search API."""
         if not guild_id:
@@ -76,6 +78,11 @@ class DiscordSearcher:
             query_params.append(f"min_id={self.convert_to_discord_snowflake(after)}")
         elif isinstance(after, int):
             query_params.append(f"min_id={after}")
+
+        if isinstance(before, datetime.datetime):
+            query_params.append(f"max_id={self.convert_to_discord_snowflake(before)}")
+        elif isinstance(before, int):
+            query_params.append(f"max_id={before}")
 
         search_query = base_url + "&".join(query_params)
         self.query = search_query
@@ -124,14 +131,11 @@ class DiscordSearcher:
         """Update the query parameters with the last message ID."""
         if self.query is None:
             raise ValueError("No query set")
-
         if "min_id" in self.query:
             min_id = self.query[self.query.index("min_id=") + len("min_id=") :]
             self.query = self.query.replace(min_id, last_message_timestamp)
         else:
             self.query = f"{self.query}&min_id={last_message_timestamp}"
-
-        print(self.query)
 
     def test_offset_limit(self) -> None:
         """Test the offset limit of the Discord API."""
@@ -139,13 +143,6 @@ class DiscordSearcher:
         result = self.search(f"{self.query}&offset=5000")
         pprint(result)
         last_message_id = result["messages"][-1][0]["id"]
-        # last_message_timestamp: datetime.datetime = datetime.datetime.strptime(
-        #     result["messages"][-1][0]["timestamp"][:10], "%Y-%m-%d"
-        # )
-        print(last_message_id)
-        # self._update_query_params(
-        #     self.convert_to_discord_snowflake(last_message_timestamp)
-        # )
         self._update_query_params(last_message_id)
         request_count = 1
         result = self.search(f"{self.query}&offset={(request_count - 1) * 25}")
@@ -169,9 +166,10 @@ class DiscordSearcher:
         try:
             while True:
                 self.append_message(result)
-                logging.info(f"Request {request_count}/{total_requests_needed}")
+                logging.info(f"Request {total_requests_needed}/{total_requests_needed}")
 
-                if request_count >= total_requests_needed:
+                if len(result["messages"]) == 0:
+                    # We are done
                     break
 
                 if request_count >= self.DISCORD_API_OFFSET_LIMIT:
@@ -188,18 +186,16 @@ class DiscordSearcher:
         except Exception as e:
             logging.error(f"Error occurred during search: {str(e)}")
         finally:
-            print(f"Total request count: {total_request_count}")
+            print(f"Total requests made: {total_request_count}")
 
 
 if __name__ == "__main__":
     token = os.getenv("DISCORD_TOKEN")
     searcher = DiscordSearcher(token)
-    searcher.test_offset_limit()
+    searcher.set_file("TowaShrug.json")
+    searcher.form_search_query("558322816416743459", "TowaShrug")
+    searcher.retrieve_query_results()
     # searcher.set_file("TowaShrug.json")
     # searcher.form_search_query(
     #     "558322816416743459", "TowaShrug", after=datetime.datetime(2022, 6, 1)
     # )
-    # pprint(searcher.search(searcher.query))
-    # searcher.set_file("raid_shadow.json")
-    # searcher.test_search()
-    # searcher.retrieve_query_results()
