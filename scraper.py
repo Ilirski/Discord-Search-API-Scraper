@@ -155,18 +155,18 @@ class DiscordSearcher:
 
         result = self.search(self.query)
         total_results = result["total_results"]
-        total_requests_needed = math.ceil(total_results / 25)
+        total_request_needed = math.ceil(total_results / 25)
         request_count = 1
         total_request_count = 1
 
         logging.info(
-            f"Total results: {total_results}, iterating {total_requests_needed} times"
+            f"Total results: {total_results}, iterating {total_request_needed} times"
         )
 
         try:
             while True:
                 self.append_message(result)
-                logging.info(f"Request {total_requests_needed}/{total_requests_needed}")
+                logging.info(f"Request {total_request_count}/{total_request_needed}")
 
                 if len(result["messages"]) == 0:
                     # We are done
