@@ -47,6 +47,6 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - 
-        run: 
+        run: |
            docker tag discordsearchscraper:latest ${{ secrets.DOCKERHUB_USERNAME }}/discordsearchscraper:latest
            docker push ${{ secrets.DOCKERHUB_USERNAME }}/discordsearchscraper:latest
