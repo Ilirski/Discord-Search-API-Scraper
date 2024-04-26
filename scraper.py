@@ -4,12 +4,33 @@ import math
 import requests
 import time
 import logging
+import optparse
 import os
-import urllib.parse
-from pprint import pprint
+from typing import Optional
+import re
 
-# TODO: Add folder to save files to
-# TODO: When searching from the middle, script does not know when to complete.
+
+DISCORD_EPOCH = 1420070400000
+
+
+def to_datetime(snowflake: str, epoch=DISCORD_EPOCH) -> datetime.datetime:
+    """Convert a Discord snowflake to a datetime object."""
+    milliseconds = int(snowflake) >> 22
+    return datetime.datetime.fromtimestamp((milliseconds + epoch) / 1000.0)
+
+
+def to_snowflake(timestamp: datetime.datetime) -> str:
+    """Convert a datetime object to a Discord snowflake."""
+    discord_epoch = 1420070400000  # Discord epoch (2015-01-01T00:00:00.000Z)
+    milliseconds = int(timestamp.timestamp() * 1000)
+    snowflake = (milliseconds - discord_epoch) << 22
+    return str(snowflake)
+
+
+def is_snowflake(snowflake: str) -> bool:
+    """Check if a string is a valid Discord snowflake."""
+    pattern = r"^\d{17,19}$"
+    return bool(re.match(pattern, snowflake))
 
 
 class DiscordSearcher:
@@ -17,74 +38,101 @@ class DiscordSearcher:
     A class for searching messages in a Discord guild using the Discord API.
     """
 
-    def __init__(self, token: str):
+    def __init__(
+        self,
+        guild_id: str,
+        token: Optional[str] = None,
+        query: Optional[str] = None,
+        output: Optional[str] = None,
+        channel_id: Optional[str] = None,
+        after: Optional[str] = None,
+        before: Optional[str] = None,
+    ) -> None:
         if not token:
-            raise ValueError("Token is required")
+            # Check if token is in environment variable
+            token = os.getenv("DISCORD_TOKEN")
+            if not token:
+                raise ValueError("Token is required")
+        if not guild_id:
+            raise ValueError("Guild ID is required")
+        if after and not is_snowflake(after):
+            raise ValueError(f"Invalid snowflake: {after}")
+        if before and not is_snowflake(before):
+            raise ValueError(f"Invalid snowflake: {before}")
         self.token = token
-        self.filename = None
-        self.query = None
+        self.guild_id = guild_id
+        self.query = query
+        self.output = output
+        self.channel_id = channel_id
+        self.after = after
+        self.before = before
         self.error_count = 0
         self.MAX_ERROR = 5
         self.DISCORD_API_OFFSET_LIMIT = 400
+
         logging.basicConfig(
             level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
         )
 
-    def set_file(self, filename: str) -> None:
-        """Set the file to write to."""
-        self.filename = filename
+        self.set_output(output)
+        self.form_search_query(guild_id, query, channel_id, after, before)
+
+    def set_output(self, output: Optional[str] = None) -> None:
+        """Set the output file."""
+        if not output:
+            self.output = self.generate_filename()
+        else:
+            if output.endswith("/"):
+                filename = self.generate_filename()
+                self.output = os.path.join(output, filename)
+            else:
+                self.output = output
+
+    def generate_filename(self) -> str:
+        """Generate a filename based on the guild ID, query, and timestamp."""
+        guild_id = self.guild_id
+        query = "_".join(self.query.split()) if self.query else ""
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{guild_id}_{query}_{timestamp}.jsonl"
+        return filename
 
     def append_message(self, messages: dict) -> None:
-        """Append a message to the file."""
-        if self.filename is None:
-            raise ValueError("No file set to write to")
-        with open(self.filename, "a") as f:
+        """Append messages to the output file."""
+        with open(self.output, "a") as f:
             for message in messages["messages"]:
                 f.write(json.dumps(message) + "\n")
-
-    def convert_to_discord_snowflake(self, date: datetime.datetime) -> str:
-        """Convert a datetime object to a Discord timestamp."""
-        DISCORD_EPOCH = 1420070400000
-
-        timestamp_ms = int(date.timestamp() * 1000)
-        timestamp_ms = (timestamp_ms - DISCORD_EPOCH) << 22
-        return str(timestamp_ms)
 
     def form_search_query(
         self,
         guild_id: str,
-        content: str | None = None,
-        channel_id: str | None = None,
-        after: int | datetime.datetime | None = None,
-        before: int | datetime.datetime | None = None,
+        content: Optional[str] = None,
+        channel_id: Optional[str] = None,
+        after: Optional[str] = None,
+        before: Optional[str] = None,
     ) -> None:
         """Form a search query for Discord's Search API."""
         if not guild_id:
             raise ValueError("Guild ID is required")
 
         base_url = f"https://discord.com/api/v9/guilds/{guild_id}/messages/search?"
-        query_params = []
+        query_params = {
+            "include_nsfw": "true",
+            "sort_by": "timestamp",
+            "sort_order": "asc",
+        }
 
         if content is not None:
-            query_params.append(f"content={urllib.parse.quote(content)}")
+            query_params["content"] = content
         if channel_id is not None:
-            query_params.append(f"channel_id={channel_id}")
+            query_params["channel_id"] = channel_id
+        if after is not None:
+            query_params["min_id"] = after
+        if before is not None:
+            query_params["max_id"] = before
 
-        query_params.extend(
-            ["include_nsfw=true", "sort_by=timestamp", "sort_order=asc"]
+        search_query = (
+            requests.Request("GET", base_url, params=query_params).prepare().url
         )
-
-        if isinstance(after, datetime.datetime):
-            query_params.append(f"min_id={self.convert_to_discord_snowflake(after)}")
-        elif isinstance(after, int):
-            query_params.append(f"min_id={after}")
-
-        if isinstance(before, datetime.datetime):
-            query_params.append(f"max_id={self.convert_to_discord_snowflake(before)}")
-        elif isinstance(before, int):
-            query_params.append(f"max_id={before}")
-
-        search_query = base_url + "&".join(query_params)
         self.query = search_query
 
     def search(self, query: str) -> dict:
@@ -122,11 +170,6 @@ class DiscordSearcher:
                     raise Exception("Max errors reached")
                 time.sleep(5)
 
-    def test_search(self) -> None:
-        """Test the search function."""
-        self.query = "https://discord.com/api/v9/guilds/791280644939841536/messages/search?content=shadow%20raid&include_nsfw=true&sort_by=timestamp&sort_order=asc"
-        self.append_message(self.search(self.query))
-
     def _update_query_params(self, last_message_timestamp: str) -> None:
         """Update the query parameters with the last message ID."""
         if self.query is None:
@@ -136,17 +179,6 @@ class DiscordSearcher:
             self.query = self.query.replace(min_id, last_message_timestamp)
         else:
             self.query = f"{self.query}&min_id={last_message_timestamp}"
-
-    def test_offset_limit(self) -> None:
-        """Test the offset limit of the Discord API."""
-        self.query = "https://discord.com/api/v9/guilds/558322816416743459/messages/search?content=BaelzNeuronActivation&include_nsfw=true&sort_by=timestamp&sort_order=asc"
-        result = self.search(f"{self.query}&offset=5000")
-        pprint(result)
-        last_message_id = result["messages"][-1][0]["id"]
-        self._update_query_params(last_message_id)
-        request_count = 1
-        result = self.search(f"{self.query}&offset={(request_count - 1) * 25}")
-        pprint(result)
 
     def retrieve_query_results(self) -> None:
         """Get all results from the search query."""
@@ -190,12 +222,52 @@ class DiscordSearcher:
 
 
 if __name__ == "__main__":
-    token = os.getenv("DISCORD_TOKEN")
-    searcher = DiscordSearcher(token)
-    searcher.set_file("TowaShrug.json")
-    searcher.form_search_query("558322816416743459", "TowaShrug")
+    cliparser = optparse.OptionParser()
+    cliparser.add_option("-g", "--guild", dest="guild_id", help="Discord guild ID")
+    cliparser.add_option(
+        "-t",
+        "--token",
+        dest="token",
+        help="Authentication token. Environment variable: DISCORD_TOKEN.",
+    )
+    cliparser.add_option(
+        "-o",
+        "--output",
+        dest="output",
+        help="Output file or directory path. If a directory is specified, file names will be generated automatically based on the channel names and export parameters. Directory paths must end with a slash to avoid ambiguity.",
+    )
+    cliparser.add_option("-q", "--query", dest="query", help="Search query")
+    cliparser.add_option(
+        "-c", "--channel", dest="channel_id", help="Channel ID (optional)"
+    )
+    cliparser.add_option(
+        "-a",
+        "--after",
+        dest="after",
+        help="Only include messages sent after this date or message ID.",
+    )
+    cliparser.add_option(
+        "-b",
+        "--before",
+        dest="before",
+        help="Only include messages sent before this date or message ID.",
+    )
+
+    (options, args) = cliparser.parse_args()
+
+    token = options.token
+    output = options.output
+    guild_id = options.guild_id
+    query = options.query
+    channel_id = options.channel_id
+    after = options.after
+    before = options.before
+
+    if not any(vars(options).values()):
+        cliparser.print_help()
+        cliparser.error("No arguments provided")
+
+    searcher = DiscordSearcher(
+        guild_id, token, query, output, channel_id, after, before
+    )
     searcher.retrieve_query_results()
-    # searcher.set_file("TowaShrug.json")
-    # searcher.form_search_query(
-    #     "558322816416743459", "TowaShrug", after=datetime.datetime(2022, 6, 1)
-    # )

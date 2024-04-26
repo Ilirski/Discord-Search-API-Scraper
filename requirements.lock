@@ -19,6 +19,7 @@ numpy==1.26.4
 pandas==2.2.1
     # via discord-search-api-scraper
 python-dateutil==2.9.0.post0
+    # via discord-search-api-scraper
     # via pandas
 pytz==2024.1
     # via pandas
