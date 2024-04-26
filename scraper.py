@@ -244,13 +244,13 @@ if __name__ == "__main__":
         "-a",
         "--after",
         dest="after",
-        help="Only include messages sent after this date or message ID.",
+        help="Only include messages sent after this message ID.",
     )
     cliparser.add_option(
         "-b",
         "--before",
         dest="before",
-        help="Only include messages sent before this date or message ID.",
+        help="Only include messages sent before this message ID.",
     )
 
     (options, args) = cliparser.parse_args()
