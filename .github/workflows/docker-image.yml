@@ -37,7 +37,7 @@ jobs:
           context: .
           file: ./Dockerfile
           push: false
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/discordsearchscraper:latest
+          tags: discordsearchscraper:latest
       - 
         name: docker-slim GitHub Action
         uses: kitabisa/docker-slim-action@v1.1.1
@@ -45,7 +45,7 @@ jobs:
           DSLIM_HTTP_PROBE: false
         with: 
           # Target container image (name or ID)
-          target: ${{ secrets.DOCKERHUB_USERNAME }}/discordsearchscraper:latest
+          target: discordsearchscraper:latest
           overwrite: true
       - 
         run: 
