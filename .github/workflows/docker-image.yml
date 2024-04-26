@@ -28,18 +28,17 @@ jobs:
         name: Build and push
         uses: docker/build-push-action@v5
         with:
-          context: .
-          file: ./Dockerfile
           push: false
-          tags: discordsearchscraper:latest
-      - 
+          file: ./Dockerfile
+          tags: "${{ github.repository }}:latest"
+      -
         name: docker-slim GitHub Action
         uses: kitabisa/docker-slim-action@v1.1.1
         env:
           DSLIM_HTTP_PROBE: false
         with: 
           # Target container image (name or ID)
-          target: discordsearchscraper:latest
+          target: "${{ github.repository }}:latest"
           overwrite: true
       -
         name: Login to Docker Hub
@@ -49,5 +48,5 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - 
         run: 
-           docker tag discordsearchscraper:latest ${{ secrets.DOCKERHUB_USERNAME }}/discordsearchscraper:latest
-           docker push ${{ secrets.DOCKERHUB_USERNAME }}/discordsearchscraper:latest
+           docker tag ${{ github.repository }}:latest ${{ secrets.DOCKERHUB_USERNAME }}${{ github.repository }}:latest
+           docker push ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.repository }}:latest
