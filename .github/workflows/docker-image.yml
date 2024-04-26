@@ -46,8 +46,8 @@ jobs:
         with: 
           # Target container image (name or ID)
           target: ${{ secrets.DOCKERHUB_USERNAME }}/discordsearchscraper:latest
-          tag: "slim"
+          overwrite: true
       - 
         run: 
-           docker tag discordsearchscraper:slim ${{ secrets.DOCKERHUB_USERNAME }}/discordsearchscraper:slim
-           docker push ${{ secrets.DOCKERHUB_USERNAME }}/discordsearchscraper:slim
+           docker tag discordsearchscraper:latest ${{ secrets.DOCKERHUB_USERNAME }}/discordsearchscraper:latest
+           docker push ${{ secrets.DOCKERHUB_USERNAME }}/discordsearchscraper:latest
