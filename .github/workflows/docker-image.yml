@@ -19,6 +19,9 @@ jobs:
         platform:
           - linux/amd64
           - linux/arm64
+        tag:
+          - amd64
+          - arm64
 
     steps:
       -
@@ -45,25 +48,25 @@ jobs:
           platforms: ${{ matrix.platform }}
           push: false
           load: true
-          tags: discordsearchscraper:${{ matrix.platform }}
+          tags: discordsearchscraper:${{ matrix.tag }}
       -
         name: docker-slim
         uses: kitabisa/docker-slim-action@v1.1.1
         env:
           DSLIM_HTTP_PROBE: false
           DSLIM_PULL: false
-          DSLIM_IMAGE_BUILD_ARCH: ${{ matrix.platform }}
+          DSLIM_IMAGE_BUILD_ARCH: ${{ matrix.tag }}
         with:
-          target: discordsearchscraper:${{ matrix.platform }}
+          target: discordsearchscraper:${{ matrix.tag }}
           overwrite: true
       -
         name: Tag image
         run: |
-          docker tag discordsearchscraper:${{ matrix.platform }} ${{ env.REGISTRY_IMAGE }}:${{ matrix.platform }}
+          docker tag discordsearchscraper:${{ matrix.tag }} ${{ env.REGISTRY_IMAGE }}:${{ matrix.tag }}
       -
         name: Push image
         run: |
-          docker push ${{ env.REGISTRY_IMAGE }}:${{ matrix.platform }}
+          docker push ${{ env.REGISTRY_IMAGE }}:${{ matrix.tag }}
 
   merge:
     runs-on: ubuntu-latest
@@ -83,8 +86,8 @@ jobs:
         name: Create and push manifest list
         run: |
           docker buildx imagetools create ${{ env.REGISTRY_IMAGE }}:latest \
-            ${{ env.REGISTRY_IMAGE }}:linux/amd64 \
-            ${{ env.REGISTRY_IMAGE }}:linux/arm64
+            ${{ env.REGISTRY_IMAGE }}:amd64 \
+            ${{ env.REGISTRY_IMAGE }}:arm64
       -
         name: Inspect image
         run: |
