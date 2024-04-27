@@ -30,8 +30,7 @@ jobs:
         with:
           file: ./Dockerfile
           pull: false
-          push: false
-          load: true
+          push: true
           tags: discordsearchscraper:latest
           platforms: linux/amd64,linux/arm64
       - 
@@ -39,7 +38,7 @@ jobs:
         uses: kitabisa/docker-slim-action@v1.1.1
         env:
           DSLIM_HTTP_PROBE: false
-          DSLIM_PULL: false
+          DSLIM_PULL: true
         with: 
           target: discordsearchscraper:latest
           overwrite: true
