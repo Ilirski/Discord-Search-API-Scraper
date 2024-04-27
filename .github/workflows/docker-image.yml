@@ -39,6 +39,7 @@ jobs:
         uses: kitabisa/docker-slim-action@v1.1.1
         env:
           DSLIM_HTTP_PROBE: false
+          DSLIM_PULL: false
         with: 
           target: discordsearchscraper:latest
           overwrite: true
