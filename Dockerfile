@@ -1,4 +1,5 @@
-FROM --platform=linux/amd64 python:3.12.3 as build
+# Fix weird run-time bug: https://stackoverflow.com/questions/74884770/python-exec-usr-local-bin-python3-exec-format-error-on-docker-while-using-ap
+FROM --platform=linux/amd64 python:3.12.3-slim-bullseye as build
 
 WORKDIR /app
 COPY requirements.lock ./
