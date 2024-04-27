@@ -81,9 +81,6 @@ class DiscordSearcher:
         """Set the output file."""
         if not output:
             self.output = self.generate_filename()
-            # Check if file exists
-            if os.path.exists(self.output):
-                raise FileExistsError(f"File {self.output} already exists")
         else:
             if output.endswith("/"):
                 filename = self.generate_filename()
@@ -93,8 +90,6 @@ class DiscordSearcher:
                     os.makedirs(output)
             else:
                 self.output = output
-                if os.path.exists(self.output):
-                    raise FileExistsError(f"File {self.output} already exists")
 
     def generate_filename(self) -> str:
         """Generate a filename based on the guild ID, query, and timestamp."""
