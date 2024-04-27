@@ -44,27 +44,28 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       -
-        name: Build and push image
-        id: build
+        name: Build image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Dockerfile
           platforms: ${{ matrix.platform }}
-          push: true
+          push: false
+          load: true
           tags: discordsearchscraper:${{ matrix.tag }}
       -
         name: docker-slim
+        id: build
         uses: kitabisa/docker-slim-action@v1.1.1
         env:
           DSLIM_HTTP_PROBE: false
-          DSLIM_PULL: true
+          DSLIM_PULL: false
           DSLIM_IMAGE_BUILD_ARCH: ${{ matrix.tag }}
         with:
           target: discordsearchscraper:${{ matrix.tag }}
           overwrite: true
       -
-        name: Push slimmed image by digest
+        name: Push image by digest
         uses: docker/build-push-action@v5
         with:
           context: .
