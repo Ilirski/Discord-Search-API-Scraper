@@ -52,7 +52,7 @@ jobs:
           file: ./Dockerfile
           platforms: ${{ matrix.platform }}
           push: true
-          tags: ${{ env.REGISTRY_IMAGE }}:${{ matrix.tag }}
+          tags: discordsearchscraper:${{ matrix.tag }}
       -
         name: docker-slim
         uses: kitabisa/docker-slim-action@v1.1.1
@@ -61,14 +61,23 @@ jobs:
           DSLIM_PULL: true
           DSLIM_IMAGE_BUILD_ARCH: ${{ matrix.tag }}
         with:
-          target: ${{ env.REGISTRY_IMAGE }}:${{ matrix.tag }}
+          target: discordsearchscraper:${{ matrix.tag }}
           overwrite: true
+      -
+        name: Push slimmed image by digest
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: ${{ matrix.platform }}
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=image,name=${{ env.REGISTRY_IMAGE }},push-by-digest=true,name-canonical=true,push=true
       -
         name: Export digest
         run: |
           mkdir -p /tmp/digests
-          digest=$(docker inspect --format='{{index .RepoDigests 0}}' ${{ env.REGISTRY_IMAGE }}:${{ matrix.tag }})
-          touch "/tmp/digests/${digest#*@}"
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
       -
         name: Upload digest
         uses: actions/upload-artifact@v4
@@ -109,7 +118,7 @@ jobs:
         working-directory: /tmp/digests
         run: |
           docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(cat *)
+            $(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
       -
         name: Inspect image
         run: |
