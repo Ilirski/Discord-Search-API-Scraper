@@ -65,10 +65,7 @@ jobs:
           target: discordsearchscraper:${{ matrix.tag }}
           overwrite: true
       - run: |
-          # DIGESTS contains a list of three digests separated by a comma.
-          DIGESTS=$(docker buildx imagetools inspect "discordsearchscraper:${{ matrix.tag }}" --format '{{- range .Manifest.Manifests}}{{- if eq .Platform.OS "linux" }}{{ .Digest }},{{- end }}{{- end }}{{- .Manifest.Digest }}
-          ')
-          echo "These are the Docker image DIGESTS: ${DIGESTS}"
+          docker image ls --digests discordsearchscraper:${{ matrix.tag }}
       -
         name: Push image by digest
         uses: docker/build-push-action@v5
