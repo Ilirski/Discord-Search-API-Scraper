@@ -46,7 +46,7 @@ jobs:
           DSLIM_HTTP_PROBE: false
           DSLIM_PULL: true
         with: 
-          target: discordsearchscraper:latest
+          target: ${{ secrets.DOCKERHUB_USERNAME }}/discordsearchscraper:latest
           overwrite: true
       - 
         run: |
