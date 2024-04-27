@@ -50,5 +50,4 @@ jobs:
           overwrite: true
       - 
         run: |
-           docker tag discordsearchscraper:latest ${{ secrets.DOCKERHUB_USERNAME }}/discordsearchscraper:latest
            docker push ${{ secrets.DOCKERHUB_USERNAME }}/discordsearchscraper:latest
