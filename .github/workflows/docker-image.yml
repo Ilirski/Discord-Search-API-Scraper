@@ -6,69 +6,126 @@ on:
   pull_request:
     branches: [ "main" ]
 
+env:
+  REGISTRY_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/discordsearchscraper
+
 jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-
-    permissions:
-      actions: write
-      contents: read
-
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            tag: amd64
+          - platform: linux/arm64
+            tag: arm64
     steps:
-      - name: Checkout
+      -
+        name: Checkout
         uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
+      -
+        name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY_IMAGE }}
+      -
+        name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      -
+        name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
-      - name: Login to Docker Hub
+      -
+        name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build and push image (amd64)
+      -
+        name: Build image
+        id: build
         uses: docker/build-push-action@v5
         with:
+          context: .
           file: ./Dockerfile
-          pull: false
-          push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/discordsearchscraper:latest-amd64
-          platforms: linux/amd64
-
-      - name: docker-slim (amd64)
+          platforms: ${{ matrix.platform }}
+          push: false
+          load: true
+          tags: discordsearchscraper:${{ matrix.tag }}
+      -
+        name: docker-slim
         uses: kitabisa/docker-slim-action@v1.1.1
         env:
           DSLIM_HTTP_PROBE: false
           DSLIM_PULL: false
-          DSLIM_IMAGE_BUILD_ARCH: amd64
+          DSLIM_IMAGE_BUILD_ARCH: ${{ matrix.tag }}
         with:
-          target: ${{ secrets.DOCKERHUB_USERNAME }}/discordsearchscraper:latest-amd64
+          target: discordsearchscraper:${{ matrix.tag }}
           overwrite: true
-
-      - name: Build and push image (arm64)
+      - run: |
+          # DIGESTS contains a list of three digests separated by a comma.
+          DIGESTS=$(docker buildx imagetools inspect "discordsearchscraper:${{ matrix.tag }}" --format '{{- range .Manifest.Manifests}}{{- if eq .Platform.OS "linux" }}{{ .Digest }},{{- end }}{{- end }}{{- .Manifest.Digest }}
+          ')
+          echo "These are the Docker image DIGESTS: ${DIGESTS}"
+      -
+        name: Push image by digest
         uses: docker/build-push-action@v5
         with:
+          context: .
           file: ./Dockerfile
-          pull: false
-          push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/discordsearchscraper:latest-arm64
-          platforms: linux/arm64
-
-      - name: docker-slim (arm64)
-        uses: kitabisa/docker-slim-action@v1.1.1
-        env:
-          DSLIM_HTTP_PROBE: false
-          DSLIM_PULL: false
-          DSLIM_IMAGE_BUILD_ARCH: arm64
-        with:
-          target: ${{ secrets.DOCKERHUB_USERNAME }}/discordsearchscraper:latest-arm64
-          overwrite: true
-
-      - name: Create and push manifest list
+          platforms: ${{ matrix.platform }}
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=image,name=${{ env.REGISTRY_IMAGE }},push-by-digest=true,name-canonical=true,push=true
+      -
+        name: Export digest
         run: |
-          docker manifest create ${{ secrets.DOCKERHUB_USERNAME }}/discordsearchscraper:latest \
-            --amend ${{ secrets.DOCKERHUB_USERNAME }}/discordsearchscraper:latest-amd64 \
-            --amend ${{ secrets.DOCKERHUB_USERNAME }}/discordsearchscraper:latest-arm64
-          docker manifest push ${{ secrets.DOCKERHUB_USERNAME }}/discordsearchscraper:latest
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+      -
+        name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ matrix.tag }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      -
+        name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digests-*
+          merge-multiple: true
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      -
+        name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY_IMAGE }}
+      -
+        name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      -
+        name: Create manifest list and push
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
+      -
+        name: Inspect image
+        run: |
+          docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:${{ steps.meta.outputs.version }}
