@@ -40,6 +40,7 @@ jobs:
         env:
           DSLIM_HTTP_PROBE: false
           DSLIM_PULL: false
+          DSLIM_IMAGE_BUILD_ARCH: amd64
         with:
           target: discordsearchscraper:amd64
           overwrite: true
@@ -59,6 +60,7 @@ jobs:
         env:
           DSLIM_HTTP_PROBE: false
           DSLIM_PULL: false
+          DSLIM_IMAGE_BUILD_ARCH: arm64
         with:
           target: discordsearchscraper:arm64
           overwrite: true
