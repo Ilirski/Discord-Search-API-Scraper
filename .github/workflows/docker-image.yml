@@ -31,6 +31,7 @@ jobs:
           file: ./Dockerfile
           pull: false
           push: false
+          load: true
           tags: discordsearchscraper:latest
           platforms: linux/amd64,linux/arm64
       - 
