@@ -24,13 +24,12 @@ jobs:
       -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-        with:
-          pull: false
       -
         name: Build and push
         uses: docker/build-push-action@v5
         with:
           file: ./Dockerfile
+          pull: false
           push: false
           tags: discordsearchscraper:latest
           platforms: linux/amd64,linux/arm64
