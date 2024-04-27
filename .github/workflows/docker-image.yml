@@ -31,10 +31,10 @@ jobs:
           file: ./Dockerfile
           pull: false
           push: false
-          load: true
           tags: discordsearchscraper:latest
           platforms: linux/amd64,linux/arm64
-      - name: List Docker images
+      - 
+        name: List Docker images
         run: docker images
       - 
         name: docker-slim GitHub Action
