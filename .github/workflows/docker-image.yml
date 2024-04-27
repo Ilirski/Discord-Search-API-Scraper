@@ -31,13 +31,13 @@ jobs:
           file: ./Dockerfile
           push: false
           tags: discordsearchscraper:latest
+          platforms: linux/amd64,linux/arm64
       - 
         name: docker-slim GitHub Action
         uses: kitabisa/docker-slim-action@v1.1.1
         env:
           DSLIM_HTTP_PROBE: false
         with: 
-          # Target container image (name or ID)
           target: discordsearchscraper:latest
           overwrite: true
       -
