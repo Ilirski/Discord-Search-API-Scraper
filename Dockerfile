@@ -1,5 +1,5 @@
 # Fix weird run-time bug: https://stackoverflow.com/questions/74884770/python-exec-usr-local-bin-python3-exec-format-error-on-docker-while-using-ap
-FROM python:3.12.3-slim-bullseye as build
+FROM python:3.12.3 as build
 
 WORKDIR /app
 COPY requirements.lock ./
