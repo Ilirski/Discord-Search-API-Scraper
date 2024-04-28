@@ -61,6 +61,7 @@ jobs:
           DSLIM_HTTP_PROBE: false
           DSLIM_PULL: false
           DSLIM_IMAGE_BUILD_ARCH: ${{ matrix.tag }}
+          DSLIM_RC_EXE: "python /app/scraper.py"
           #DSLIM_INCLUDE_PATH: /usr/local/lib/python3.12
         with:
           target: ${{ env.REGISTRY_IMAGE }}:${{ matrix.tag }}
