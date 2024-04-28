@@ -36,5 +36,5 @@ jobs:
         with:
           file: ./Dockerfile
           push: true
-          tags: discordsearchscraper:latest
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/discordsearchscraper:latest
           platforms: linux/amd64,linux/arm64
