@@ -7,5 +7,6 @@ RUN PYTHONDONTWRITEBYTECODE=1 pip install --no-cache-dir -r requirements.lock
 
 COPY scraper.py .
 WORKDIR /out
+ENV PYTHONPATH=/usr/local/lib/python3.12/site-packages
 ENTRYPOINT ["python", "/app/scraper.py"]
 
