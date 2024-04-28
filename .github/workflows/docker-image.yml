@@ -96,11 +96,10 @@ jobs:
           PLATFORMS=("amd64" "arm64")
           for PLATFORM in ${PLATFORMS[@]}; do
             echo "Deleting tag: discordsearchscraper:${PLATFORM}"
+            #curl -s -L -X DELETE "https://hub.docker.com/v2/namespaces/aamdigital/repositories/ndb-server/tags/%TAG" -H "Authorization: Bearer $token"
             
             curl -X DELETE \
               -H "Accept: application/json" \
               -H "Authorization: JWT ${ACCESS_TOKEN}" \
-              https://hub.docker.com/v2/repositories/discordsearchscraper/tags/${PLATFORM}/
+              https://hub.docker.com/v2/namespaces/${{ secrets.DOCKERHUB_USERNAME }}/repositories/discordsearchscraper/tags/${PLATFORM}
           done
-
-        
