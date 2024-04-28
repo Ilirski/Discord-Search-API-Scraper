@@ -6,21 +6,35 @@ on:
   pull_request:
     branches: [ "main" ]
 
+env:
+  REGISTRY_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/discordsearchscraper
+
 jobs:
 
   build:
   
     runs-on: ubuntu-latest
-    timeout-minutes: 10
 
     permissions:
       actions: write
       contents: read
+      
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            tag: amd64
+          - platform: linux/arm64
+            tag: arm64
           
     steps:
       -
         name: Checkout
         uses: actions/checkout@v4
+      -
+        name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
       -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -32,74 +46,61 @@ jobs:
           pull: false
           push: false
           load: true
-          tags: discordsearchscraper:amd64
-          platforms: linux/amd64
+          tags: ${{ env.REGISTRY_IMAGE }}:${{ matrix.tag }}
+          platforms: ${{ matrix.platform }}
       -
         name: docker-slim (amd64)
         uses: kitabisa/docker-slim-action@v1.1.1
         env:
           DSLIM_HTTP_PROBE: false
           DSLIM_PULL: false
-          DSLIM_IMAGE_BUILD_ARCH: amd64
+          DSLIM_IMAGE_BUILD_ARCH: ${{ matrix.tag }}
         with:
-          target: discordsearchscraper:amd64
+          target: ${{ env.REGISTRY_IMAGE }}:${{ matrix.tag }}
           overwrite: true
-      -
-        name: Build image (arm64)
-        uses: docker/build-push-action@v5
-        with:
-          file: ./Dockerfile
-          pull: false
-          push: false
-          load: true
-          tags: discordsearchscraper:arm64
-          platforms: linux/arm64
-      -
-        name: docker-slim (arm64)
-        uses: kitabisa/docker-slim-action@v1.1.1
-        env:
-          DSLIM_HTTP_PROBE: false
-          DSLIM_PULL: false
-          DSLIM_IMAGE_BUILD_ARCH: arm64
-        with:
-          target: discordsearchscraper:arm64
-          overwrite: true
-      -
-        name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      -
-        name: Push images to Docker Hub
-        run: |
-          docker tag discordsearchscraper:amd64 ${{ secrets.DOCKERHUB_USERNAME }}/discordsearchscraper:amd64
-          docker tag discordsearchscraper:arm64 ${{ secrets.DOCKERHUB_USERNAME }}/discordsearchscraper:arm64
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/discordsearchscraper:amd64
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/discordsearchscraper:arm64
-      -
-        name: Create and push manifest list
-        run: |
-          docker manifest create ${{ secrets.DOCKERHUB_USERNAME }}/discordsearchscraper:latest \
-            --amend ${{ secrets.DOCKERHUB_USERNAME }}/discordsearchscraper:amd64 \
-            --amend ${{ secrets.DOCKERHUB_USERNAME }}/discordsearchscraper:arm64
-          docker manifest push ${{ secrets.DOCKERHUB_USERNAME }}/discordsearchscraper:latest
-      - 
-        name: Cleanup tags
-        run: |
-          ACCESS_TOKEN=$(curl -X POST \
-            -H "Content-Type: application/json" \
-            -H "Accept: application/json" \
-            -d "{\"username\":\"${{ secrets.DOCKERHUB_USERNAME }}\",\"password\":\"${{ secrets.DOCKERHUB_TOKEN }}\"}" \
-            https://hub.docker.com/v2/users/login/ | jq --raw-output '.token')
-                    
-          PLATFORMS=("amd64" "arm64")
-          for PLATFORM in ${PLATFORMS[@]}; do
-            echo "Deleting tag: discordsearchscraper:${PLATFORM}"
-            #curl -s -L -X DELETE "https://hub.docker.com/v2/namespaces/aamdigital/repositories/ndb-server/tags/%TAG" -H "Authorization: Bearer $token"
-            
-            curl -X DELETE \
-              -H "Accept: application/json" \
-              -H "Authorization: JWT ${ACCESS_TOKEN}" \
-              https://hub.docker.com/v2/namespaces/${{ secrets.DOCKERHUB_USERNAME }}/repositories/discordsearchscraper/tags/${PLATFORM}
-          done
+  manifest:
+        runs-on: ubuntu-latest
+        needs: build
+        steps:
+          -
+            name: Checkout
+            uses: actions/checkout@v4
+          -
+            name: Login to Docker Hub
+            uses: docker/login-action@v3
+            with:
+              username: ${{ secrets.DOCKERHUB_USERNAME }}
+              password: ${{ secrets.DOCKERHUB_TOKEN }}
+          -
+            name: Push images to Docker Hub
+            run: |
+              docker tag discordsearchscraper:amd64 ${{ secrets.DOCKERHUB_USERNAME }}/discordsearchscraper:amd64
+              docker tag discordsearchscraper:arm64 ${{ secrets.DOCKERHUB_USERNAME }}/discordsearchscraper:arm64
+              docker push ${{ secrets.DOCKERHUB_USERNAME }}/discordsearchscraper:amd64
+              docker push ${{ secrets.DOCKERHUB_USERNAME }}/discordsearchscraper:arm64
+          -
+            name: Create and push manifest list
+            run: |
+              docker manifest create ${{ secrets.DOCKERHUB_USERNAME }}/discordsearchscraper:latest \
+                --amend ${{ secrets.DOCKERHUB_USERNAME }}/discordsearchscraper:amd64 \
+                --amend ${{ secrets.DOCKERHUB_USERNAME }}/discordsearchscraper:arm64
+              docker manifest push ${{ secrets.DOCKERHUB_USERNAME }}/discordsearchscraper:latest
+          - 
+            name: Cleanup tags
+            run: |
+              ACCESS_TOKEN=$(curl -X POST \
+                -H "Content-Type: application/json" \
+                -H "Accept: application/json" \
+                -d "{\"username\":\"${{ secrets.DOCKERHUB_USERNAME }}\",\"password\":\"${{ secrets.DOCKERHUB_TOKEN }}\"}" \
+                https://hub.docker.com/v2/users/login/ | jq --raw-output '.token')
+                        
+              PLATFORMS=("amd64" "arm64")
+              for PLATFORM in ${PLATFORMS[@]}; do
+                echo "Deleting tag: discordsearchscraper:${PLATFORM}"
+                #curl -s -L -X DELETE "https://hub.docker.com/v2/namespaces/aamdigital/repositories/ndb-server/tags/%TAG" -H "Authorization: Bearer $token"
+                
+                curl -X DELETE \
+                  -H "Accept: application/json" \
+                  -H "Authorization: JWT ${ACCESS_TOKEN}" \
+                  https://hub.docker.com/v2/namespaces/${{ secrets.DOCKERHUB_USERNAME }}/repositories/discordsearchscraper/tags/${PLATFORM}
+              done
