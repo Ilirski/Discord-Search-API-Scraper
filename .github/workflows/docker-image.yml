@@ -92,10 +92,10 @@ jobs:
           -
             name: Create and push manifest list (slim)
             run: |
-              docker manifest create --amend ${{ env.REGISTRY_IMAGE }}:latest-slim \
+              docker manifest create --amend ${{ env.REGISTRY_IMAGE }}:slim-latest \
                 ${{ env.REGISTRY_IMAGE }}:amd64-slim \
                 ${{ env.REGISTRY_IMAGE }}:arm64-slim
-              docker manifest push ${{ env.REGISTRY_IMAGE }}:latest-slim
+              docker manifest push ${{ env.REGISTRY_IMAGE }}:slim-latest
           - 
             name: Cleanup tags
             run: |
@@ -105,13 +105,13 @@ jobs:
                 -d "{\"username\":\"${{ secrets.DOCKERHUB_USERNAME }}\",\"password\":\"${{ secrets.DOCKERHUB_TOKEN }}\"}" \
                 https://hub.docker.com/v2/users/login/ | jq --raw-output '.token')
                         
-              PLATFORMS=("amd64" "arm64")
-              for PLATFORM in ${PLATFORMS[@]}; do
+              TAGS=("amd64" "arm64" "amd64-slim" "arm64-slim")
+              for TAG in ${TAGS[@]}; do
                 echo "Deleting tag: discordsearchscraper:${PLATFORM}"
                 #curl -s -L -X DELETE "https://hub.docker.com/v2/namespaces/aamdigital/repositories/ndb-server/tags/%TAG" -H "Authorization: Bearer $token"
                 
                 curl -X DELETE \
                   -H "Accept: application/json" \
                   -H "Authorization: JWT ${ACCESS_TOKEN}" \
-                  https://hub.docker.com/v2/namespaces/${{ secrets.DOCKERHUB_USERNAME }}/repositories/discordsearchscraper/tags/${PLATFORM}
+                  https://hub.docker.com/v2/namespaces/${{ secrets.DOCKERHUB_USERNAME }}/repositories/discordsearchscraper/tags/${TAG}
               done
