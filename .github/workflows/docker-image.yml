@@ -50,7 +50,7 @@ jobs:
         with:
           file: ./Dockerfile
           pull: false
-          push: true
+          push: false
           load: true
           tags: ${{ env.REGISTRY_IMAGE }}:${{ matrix.tag }}
           platforms: ${{ matrix.platform }}
@@ -63,11 +63,11 @@ jobs:
           DSLIM_IMAGE_BUILD_ARCH: ${{ matrix.tag }}
         with:
           target: ${{ env.REGISTRY_IMAGE }}:${{ matrix.tag }}
-          overwrite: true
+          tag: ${{ matrix.tag }}-slim
       -
         name: Push images to Docker Hub
         run: |
-          docker tag ${{ env.REGISTRY_IMAGE }}:${{ matrix.tag }} ${{ env.REGISTRY_IMAGE }}:${{ matrix.tag }}-slim
+          docker push ${{ env.REGISTRY_IMAGE }}:${{ matrix.tag }}
           docker push ${{ env.REGISTRY_IMAGE }}:${{ matrix.tag }}-slim
   manifest:
         runs-on: ubuntu-latest
