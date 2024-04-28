@@ -62,11 +62,12 @@ jobs:
           DSLIM_PULL: false
           DSLIM_IMAGE_BUILD_ARCH: ${{ matrix.tag }}
         with:
-          target: ${{ env.REGISTRY_IMAGE }}:${{ matrix.tag }}-slim
+          target: ${{ env.REGISTRY_IMAGE }}:${{ matrix.tag }}
           overwrite: true
       -
         name: Push images to Docker Hub
         run: |
+          docker tag ${{ env.REGISTRY_IMAGE }}:${{ matrix.tag }} ${{ env.REGISTRY_IMAGE }}:${{ matrix.tag }}-slim
           docker push ${{ env.REGISTRY_IMAGE }}:${{ matrix.tag }}-slim
   manifest:
         runs-on: ubuntu-latest
