@@ -188,6 +188,9 @@ class DiscordSearcher:
         if self.query is None:
             raise ValueError("No query set")
 
+        ip = requests.get("https://api.ipify.org").content.decode("utf8")
+        logging.info(f"My public IP address is: {ip}")
+
         result = self.search(self.query)
         total_results = result["total_results"]
         total_request_needed = math.ceil(total_results / 25)
