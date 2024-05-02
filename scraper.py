@@ -258,6 +258,19 @@ if __name__ == "__main__":
         dest="before",
         help="Only include messages sent before this message ID.",
     )
+    cliparser.add_option(
+        "-l",
+        "--from-last-output",
+        action="store_true",
+        dest="from_last",
+        default=False,
+        help=(
+            "Continue exporting messages from the last message ID found in the\n"
+            "existing output file. Requires an output file to be specified with\n"
+            "--output. If used together with --after, --from-last-output will\n"
+            "overwrite the --after value."
+        ),
+    )
 
     (options, args) = cliparser.parse_args()
 
@@ -272,6 +285,19 @@ if __name__ == "__main__":
     if not any(vars(options).values()):
         cliparser.print_help()
         cliparser.error("No arguments provided")
+
+    if options.from_last:
+        if not output:
+            cliparser.error(
+                "Output file must be specified to continue from the last message ID"
+            )
+        if not os.path.exists(output):
+            cliparser.error("Output file does not exist")
+        with open(output, "r") as f:
+            last_line = f.readlines()[-1]
+            last_message = json.loads(last_line)
+            after = last_message[0]["id"]
+            print(f"Overwriting --after with last message ID: {after}")
 
     searcher = DiscordSearcher(
         guild_id, token, query, output, channel_id, after, before
