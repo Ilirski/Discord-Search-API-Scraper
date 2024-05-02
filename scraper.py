@@ -71,7 +71,9 @@ class DiscordSearcher:
         self.DISCORD_API_OFFSET_LIMIT = 400
 
         logging.basicConfig(
-            level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
+            format="%(asctime)s %(levelname)s %(message)s",
+            datefmt="%Y-%m-%dT%H:%M:%SZ",
+            level=logging.DEBUG,
         )
 
         self.set_output(output)
@@ -297,6 +299,8 @@ if __name__ == "__main__":
             last_line = f.readlines()[-1]
             last_message = json.loads(last_line)
             after = last_message[0]["id"]
+            # For some reason if this is logging.info the logs don't get output to terminal.
+            # I suspect it's due to logging.basicConfig being called in the DiscordSearcher class.
             print(f"Overwriting --after with last message ID: {after}")
 
     searcher = DiscordSearcher(
